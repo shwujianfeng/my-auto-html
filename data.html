@@ -1,2 +1,178 @@
-<h1>今天的内容</h1>
-<p>我会自动更新</p>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>亦芯数据看板</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f0f2f5; color: #333; font-size: 13px; }
+  .page-header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; text-align: center; padding: 24px 20px 16px; position: sticky; top: 0; z-index: 101; }
+  .page-header h1 { font-size: 28px; letter-spacing: 4px; margin-bottom: 6px; }
+  .page-header .date-tag { font-size: 13px; opacity: 0.8; }
+  .main-container { max-width: 1400px; margin: 0 auto; padding: 16px; scroll-margin-top: 70px; }
+
+  /* 总览卡片 */
+  .summary-section { margin-bottom: 20px; position: sticky; top: 80px; z-index: 100; background: #f5f6fa; padding: 12px 16px; border-bottom: 1px solid #ddd; }
+  .summary-title { color: #6c5ce7; border-left: 5px solid #6c5ce7 !important; }
+  .card-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 8px; margin-top: 12px; }
+  .summary-card { background: white; border-radius: 10px; padding: 10px 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform .15s; }
+  .summary-card:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
+  .card-title { font-size: 12px; font-weight: bold; margin-bottom: 2px; color: #1a1a2e; }
+  .card-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; border-bottom: 1px dashed #f0f0f0; }
+  .card-row .val { font-size: 18px; font-weight: bold; color: #2d3436; }
+  .card-row:last-child { border-bottom: none; }
+  .card-row .label { color: #666; font-size: 11px; }
+  .card-row .val { font-weight: bold; font-size: 13px; color: #1a1a2e; }
+  .card-row .val em { font-style: normal; font-size: 10px; color: #999; margin-left: 2px; }
+
+  /* 板块样式 */
+  .section-title { font-size: 16px; font-weight: bold; padding: 10px 14px; margin-bottom: 12px; border-radius: 6px 6px 0 0; background: #f8f9fa; }
+  .sub-title { font-size: 13px; font-weight: bold; padding: 7px 14px; margin: 10px 0 6px; border-radius: 4px; color: #333; }
+  .section-note { font-size: 11px; color: #888; margin: -6px 0 10px 4px; }
+  .data-section { background: white; border-radius: 10px; padding: 16px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); scroll-margin-top: 280px; }
+
+  /* 表格 */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead tr { background: #2d3436; color: white; }
+  thead th { padding: 9px 10px; text-align: center; font-weight: bold; white-space: nowrap; }
+  tbody tr:nth-child(even) { background: #f9fafb; }
+  tbody tr:hover { background: #e8f4fd; }
+  tbody td { padding: 7px 10px; border-bottom: 1px solid #eee; white-space: nowrap; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .num { text-align: right; font-family: "Courier New", monospace; }
+  .subtotal-row { background: #fff3cd !important; font-weight: bold; }
+  .subtotal-row td { border-top: 1px solid #ffc107; }
+  .field-note { font-size: 10px; color: #888; font-weight: normal; }
+
+  /* 环比颜色 */
+  .ratio { padding: 1px 5px; border-radius: 3px; font-size: 12px; font-weight: bold; }
+  .ratio.up { color: #e74c3c; background: #fdecea; }
+  .ratio.down { color: #27ae60; background: #e8f8f0; }
+
+  /* 板块颜色标记 */
+  .tencent-section .section-title { background: #eef2ff; }
+  .kuaishou-section .section-title { background: #fff4ee; }
+  .juliang-section .section-title { background: #fff0f1; }
+  .xhs-section .section-title { background: #fff0f5; }
+  .sichuan-section .section-title { background: #fff5f5; }
+  .gaode-section .section-title { background: #edfbf5; }
+  .bilibili-section .section-title { background: #edfffe; }
+  .baidu-section .section-title { background: #fffbee; }
+  .alipay-section .section-title { background: #f0f0f0; }
+
+  /* 警告框 */
+  .warn-box { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+  .warn-box p { color: #856404; margin: 3px 0; font-size: 12px; }
+  .warn-text { color: #856404; font-size: 13px; padding: 10px; background: #fff3cd; border-radius: 6px; }
+
+  /* 页脚 */
+  .page-footer { text-align: center; color: #aaa; font-size: 11px; padding: 16px; margin-top: 8px; }
+
+  @media (max-width: 768px) {
+    .card-grid { grid-template-columns: repeat(2, 1fr); }
+    .page-header h1 { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="page-header">
+  <h1>亦 芯 数 据 看 板</h1>
+  <div class="date-tag">数据日期：2026-04-21 &nbsp;｜&nbsp; 生成时间：2026-04-22 12:54</div>
+</div>
+<div class="main-container">
+  
+  
+    <section class="summary-section" id="summary-section">
+        <h2 class="section-title summary-title">📊 整体总览</h2>
+        <div class="card-grid">
+            
+        <div class="summary-card" style="border-top: 4px solid #6c5ce7;">
+            <div class="card-title">整体合计</div>
+            <div class="card-row"><span class="label">昨日消耗</span><span class="val">2081.13<em>万元</em></span></div>
+            <div class="card-row"><span class="label">昨日环比</span><span class="val"><span class="ratio up">▲5.90%</span></span></div>
+            <div class="card-row"><span class="label">QTD消耗</span><span class="val">42388.37<em>万元</em></span></div>
+        </div>
+            
+        <div class="summary-card" style="border-top: 4px solid #0052cc;cursor:pointer;" onclick="(function(){var t=document.getElementById('sec-tencent');if(!t)return;t.scrollIntoView({behavior:'smooth',block:'start'})})()">
+            <div class="card-title">腾讯</div>
+            <div class="card-row"><span class="label">昨日消耗</span><span class="val">1136.25<em>万元</em></span></div>
+            <div class="card-row"><span class="label">昨日环比</span><span class="val"><span class="ratio up">▲8.93%</span></span></div>
+            <div class="card-row"><span class="label">QTD消耗</span><span class="val">22684.01<em>万元</em></span></div>
+        </div>
+            
+        <div class="summary-card" style="border-top: 4px solid #ff6b35;cursor:pointer;" onclick="(function(){var t=document.getElementById('sec-kuaishou');if(!t)return;t.scrollIntoView({behavior:'smooth',block:'start'})})()">
+            <div class="card-title">快手</div>
+            <div class="card-row"><span class="label">昨日消耗</span><span class="val">49.81<em>万元</em></span></div>
+            <div class="card-row"><span class="label">昨日环比</span><span class="val"><span class="ratio down">▼0.29%</span></span></div>
+            <div class="card-row"><span class="label">QTD消耗</span><span class="val">973.54<em>万元</em></span></div>
+        </div>
+            
+        <div class="summary-card" style="border-top: 4px solid #ff4757;cursor:pointer;" onclick="(function(){var t=document.getElementById('sec-juliang');if(!t)return;t.scrollIntoView({behavior:'smooth',block:'start'})})()">
+            <div class="card-title">巨量（含591）</div>
+            <div class="card-row"><span class="label">昨日消耗</span><span class="val">478.79<em>万元</em></span></div>
+            <div class="card-row"><span class="label">昨日环比</span><span class="val"><span class="ratio up">▲5.58%</span></span></div>
+            <div class="card-row"><span class="label">QTD消耗</span><span class="val">10431.37<em>万元</em></span></div>
+        </div>
+            
+        <div class="summary-card" style="border-top: 4px solid #ff2d55;cursor:pointer;" onclick="(function(){var t=document.getElementById('sec-xhs');if(!t)return;t.scrollIntoView({behavior:'smooth',block:'start'})})()">
+            <div class="card-title">小红书（含两平台）</div>
+            <div class="card-row"><span class="label">昨日消耗</span><span class="val">338.82<em>万元</em></span></div>
+            <div class="card-row"><span class="label">昨日环比</span><span class="val"><span class="ratio up">▲1.22%</span></span></div>
+            <div class="card-row"><span class="label">双月消耗3-4月</span><span class="val">16539.89<em>万元</em></span></div>
+        </div>
+            
+        <div class="summary-card" style="border-top: 4px solid #00b894;cursor:pointer;" onclick="(function(){var t=document.getElementById('sec-gaode');if(!t)return;t.scrollIntoView({behavior:'smooth',block:'start'})})()">
+            <div class="card-title">高德</div>
+            <div class="card-row"><span class="label">昨日消耗</span><span class="val">0.00<em>万元</em></span></div>
+            <div class="card-row"><span class="label">昨日环比</span><span class="val">-</span></div>
+            <div class="card-row"><span class="label">QTD消耗</span><span class="val">0.90<em>万元</em></span></div>
+        </div>
+            
+        <div class="summary-card" style="border-top: 4px solid #00cec9;cursor:pointer;" onclick="(function(){var t=document.getElementById('sec-bilibili');if(!t)return;t.scrollIntoView({behavior:'smooth',block:'start'})})()">
+            <div class="card-title">B站</div>
+            <div class="card-row"><span class="label">昨日消耗</span><span class="val">36.89<em>万元</em></span></div>
+            <div class="card-row"><span class="label">昨日环比</span><span class="val"><span class="ratio up">▲7.82%</span></span></div>
+            <div class="card-row"><span class="label">QTD消耗</span><span class="val">802.91<em>万元</em></span></div>
+        </div>
+            
+        <div class="summary-card" style="border-top: 4px solid #fdcb6e;cursor:pointer;" onclick="(function(){var t=document.getElementById('sec-baidu');if(!t)return;t.scrollIntoView({behavior:'smooth',block:'start'})})()">
+            <div class="card-title">百度</div>
+            <div class="card-row"><span class="label">昨日消耗</span><span class="val">15.24<em>万元</em></span></div>
+            <div class="card-row"><span class="label">昨日环比</span><span class="val"><span class="ratio up">▲6.76%</span></span></div>
+            <div class="card-row"><span class="label">QTD消耗</span><span class="val">241.23<em>万元</em></span></div>
+        </div>
+            
+        <div class="summary-card" style="border-top: 4px solid #636e72;cursor:pointer;" onclick="(function(){var t=document.getElementById('sec-alipay');if(!t)return;t.scrollIntoView({behavior:'smooth',block:'start'})})()">
+            <div class="card-title">支付宝</div>
+            <div class="card-row"><span class="label">昨日消耗</span><span class="val">25.32<em>万元</em></span></div>
+            <div class="card-row"><span class="label">昨日环比</span><span class="val"><span class="ratio down">▼28.36%</span></span></div>
+            <div class="card-row"><span class="label">QTD消耗</span><span class="val">534.07<em>万元</em></span></div>
+        </div>
+        </div>
+    </section>
+  <section class="data-section tencent-section" id="sec-tencent"><h2 class="section-title" style="border-left:5px solid #0052cc">📺 腾讯数据板块</h2><h3 class="sub-title" style="background:#e8f0fe">K1框 明细（事业部维度，前3名）</h3><div class="table-wrap"><table>
+                <thead><tr><th>事业部</th><th>昨日消耗(万元)</th><th>昨日环比</th><th>昨日占比</th><th>QTD消耗(万元)</th></tr></thead><tbody><tr><td>【第一事业群】营销三中心｜销售一部</td><td class="num">106.00</td><td class="num"><span class="ratio up">▲8.58%</span></td><td class="num">78.37%</td><td class="num">2107.18</td></tr><tr><td>【第一事业群】营销三中心｜销售二部</td><td class="num">15.27</td><td class="num"><span class="ratio up">▲0.40%</span></td><td class="num">11.29%</td><td class="num">329.39</td></tr><tr><td>【第一事业群】渠道营销中心</td><td class="num">13.41</td><td class="num"><span class="ratio up">▲4.99%</span></td><td class="num">9.91%</td><td class="num">404.52</td></tr><tr class="subtotal-row"><td>【K1框】小计</td><td class="num">135.26</td><td class="num"><span class="ratio up">▲7.18%</span></td><td class="num">100.00%</td><td class="num">2847.93</td></tr></tbody></table></div><h3 class="sub-title" style="background:#d2e3fc">K2框 明细（事业部维度，前3名）</h3><div class="table-wrap"><table>
+                <thead><tr><th>事业部</th><th>昨日消耗(万元)</th><th>昨日环比</th><th>昨日占比</th><th>QTD消耗(万元)</th></tr></thead><tbody><tr><td>【第一事业群】营销三中心｜销售二部</td><td class="num">44.68</td><td class="num"><span class="ratio up">▲11.14%</span></td><td class="num">67.53%</td><td class="num">1225.81</td></tr><tr><td>【第一事业群】营销一中心</td><td class="num">15.68</td><td class="num"><span class="ratio up">▲5.66%</span></td><td class="num">23.71%</td><td class="num">212.08</td></tr><tr><td>【第一事业群】营销二中心</td><td class="num">4.05</td><td class="num"><span class="ratio down">▼14.38%</span></td><td class="num">6.13%</td><td class="num">48.78</td></tr><tr class="subtotal-row"><td>【K2框】小计</td><td class="num">66.16</td><td class="num"><span class="ratio up">▲7.11%</span></td><td class="num">100.00%</td><td class="num">1521.05</td></tr></tbody></table></div><h3 class="sub-title" style="background:#b3c7f7">K3框 明细（按行业维度）</h3><div class="table-wrap"><table>
+                <thead><tr><th>行业分组</th><th>昨日消耗(万元)</th><th>昨日环比</th><th>昨日占比</th><th>QTD消耗(万元)</th></tr></thead><tbody><tr><td>金融</td><td class="num">169.05</td><td class="num"><span class="ratio up">▲5.79%</span></td><td class="num">32.28%</td><td class="num">3311.49</td></tr><tr><td>教育</td><td class="num">164.59</td><td class="num"><span class="ratio up">▲12.25%</span></td><td class="num">31.43%</td><td class="num">3079.37</td></tr><tr><td>房家</td><td class="num">77.77</td><td class="num"><span class="ratio down">▼3.33%</span></td><td class="num">14.85%</td><td class="num">1713.93</td></tr><tr><td>健康</td><td class="num">27.53</td><td class="num"><span class="ratio down">▼4.84%</span></td><td class="num">5.26%</td><td class="num">672.53</td></tr><tr><td>其他</td><td class="num">84.72</td><td class="num"><span class="ratio up">▲14.01%</span></td><td class="num">16.18%</td><td class="num">1492.74</td></tr><tr class="subtotal-row"><td>【K3框】小计</td><td class="num">523.65</td><td class="num"><span class="ratio up">▲6.84%</span></td><td class="num">100.00%</td><td class="num">10270.07</td></tr></tbody></table></div><h3 class="sub-title" style="background:#a0b4f0">K4框 明细（按省份维度）</h3><div class="table-wrap"><table>
+                <thead><tr><th>K框-省份</th><th>昨日消耗(万元)</th><th>昨日环比</th><th>昨日占比</th><th>QTD消耗(万元)</th></tr></thead><tbody><tr style="font-weight:bold;background:#f0f4ff"><td>上海市</td><td class="num">127.83</td><td class="num"><span class="ratio up">▲14.93%</span></td><td class="num">65.76%</td><td class="num">2364.17</td></tr><tr style="font-weight:bold;background:#f0f4ff"><td>京津市</td><td class="num">58.72</td><td class="num"><span class="ratio up">▲11.44%</span></td><td class="num">81.09%</td><td class="num">1043.39</td></tr><tr style="font-weight:bold;background:#f0f4ff"><td>东三省</td><td class="num">47.44</td><td class="num"><span class="ratio up">▲12.06%</span></td><td class="num">37.81%</td><td class="num">882.61</td></tr><tr style="font-weight:bold;background:#f0f4ff"><td>福建省</td><td class="num">45.41</td><td class="num"><span class="ratio up">▲11.41%</span></td><td class="num">95.42%</td><td class="num">853.42</td></tr><tr style="font-weight:bold;background:#f0f4ff"><td>浙江省</td><td class="num">44.96</td><td class="num"><span class="ratio up">▲11.62%</span></td><td class="num">42.04%</td><td class="num">1037.06</td></tr><tr style="font-weight:bold;background:#f0f4ff"><td>江苏省</td><td class="num">40.80</td><td class="num"><span class="ratio up">▲9.61%</span></td><td class="num">64.88%</td><td class="num">845.02</td></tr><tr style="font-weight:bold;background:#f0f4ff"><td>四川省</td><td class="num">38.03</td><td class="num"><span class="ratio up">▲13.60%</span></td><td class="num">78.27%</td><td class="num">694.86</td></tr><tr style="font-weight:bold;background:#f0f4ff"><td>海广贵</td><td class="num">5.16</td><td class="num"><span class="ratio up">▲21.19%</span></td><td class="num">23.67%</td><td class="num">82.23</td></tr><tr class="subtotal-row"><td>【K4框】小计</td><td class="num">408.34</td><td class="num"><span class="ratio up">▲12.73%</span></td><td class="num">100.00%</td><td class="num">7802.75</td></tr></tbody></table></div><h3 class="sub-title" style="background:#8fa3e8">品牌框 明细（事业部维度，前3名）</h3><div class="table-wrap"><table>
+                <thead><tr><th>事业部</th><th>昨日消耗(万元)</th><th>昨日环比</th><th>昨日占比</th><th>QTD消耗(万元)</th></tr></thead><tbody><tr><td>【第一事业群】渠道营销中心</td><td class="num">1.34</td><td class="num"><span class="ratio up">▲47.20%</span></td><td class="num">50.38%</td><td class="num">15.95</td></tr><tr><td>【第一事业群】营销三中心｜销售一部</td><td class="num">0.77</td><td class="num"><span class="ratio down">▼22.52%</span></td><td class="num">29.10%</td><td class="num">195.61</td></tr><tr><td>【第一事业群】营销一中心</td><td class="num">0.35</td><td class="num"><span class="ratio down">▼48.27%</span></td><td class="num">13.28%</td><td class="num">10.98</td></tr><tr class="subtotal-row"><td>【品牌框】小计</td><td class="num">2.66</td><td class="num"><span class="ratio down">▼6.30%</span></td><td class="num">100.00%</td><td class="num">238.79</td></tr></tbody></table></div></section>
+  <section class="data-section kuaishou-section" id="sec-kuaishou"><h2 class="section-title" style="border-left:5px solid #ff6b35">📱 快手数据板块</h2><div class="table-wrap"><table>
+        <thead><tr><th>开户后台区域</th><th>26年一级事业部</th><th>昨日消耗(万元)</th><th>昨日环比</th><th>昨日占比</th><th>QTD消耗(万元)</th></tr></thead><tbody><tr><td>上海</td><td>【第一事业群】营销一中心</td><td class="num">9.25</td><td class="num"><span class="ratio down">▼5.13%</span></td><td class="num">91.71%</td><td class="num">210.53</td></tr><tr><td>上海</td><td>【第一事业群】渠道营销中心</td><td class="num">0.48</td><td class="num"><span class="ratio down">▼22.90%</span></td><td class="num">4.79%</td><td class="num">10.28</td></tr><tr class="subtotal-row"><td colspan="2">【上海】小计</td><td class="num">10.09</td><td class="num"><span class="ratio down">▼5.63%</span></td><td class="num">100.00%</td><td class="num">228.37</td></tr><tr><td>四川</td><td>【第一事业群】营销二中心</td><td class="num">21.84</td><td class="num"><span class="ratio up">▲24.31%</span></td><td class="num">84.87%</td><td class="num">317.27</td></tr><tr><td>四川</td><td>【第一事业群】渠道营销中心</td><td class="num">3.40</td><td class="num"><span class="ratio up">▲3.00%</span></td><td class="num">13.22%</td><td class="num">74.41</td></tr><tr class="subtotal-row"><td colspan="2">【四川】小计</td><td class="num">25.73</td><td class="num"><span class="ratio up">▲19.59%</span></td><td class="num">100.00%</td><td class="num">400.42</td></tr><tr><td>本地生活</td><td>【第一事业群】营销三中心</td><td class="num">0.89</td><td class="num"><span class="ratio up">▲11.65%</span></td><td class="num">99.95%</td><td class="num">16.13</td></tr><tr><td>本地生活</td><td>【第一事业群】营销一中心</td><td class="num">0.00</td><td class="num"><span class="ratio down">▼99.30%</span></td><td class="num">0.05%</td><td class="num">0.57</td></tr><tr class="subtotal-row"><td colspan="2">【本地生活】小计</td><td class="num">0.89</td><td class="num"><span class="ratio up">▲3.02%</span></td><td class="num">100.00%</td><td class="num">16.70</td></tr><tr><td>浙江</td><td>【第一事业群】营销一中心</td><td class="num">11.69</td><td class="num"><span class="ratio down">▼22.44%</span></td><td class="num">89.22%</td><td class="num">286.69</td></tr><tr><td>浙江</td><td>【第二事业群】营销一中心</td><td class="num">1.25</td><td class="num"><span class="ratio down">▼24.67%</span></td><td class="num">9.54%</td><td class="num">24.83</td></tr><tr class="subtotal-row"><td colspan="2">【浙江】小计</td><td class="num">13.10</td><td class="num"><span class="ratio down">▼22.41%</span></td><td class="num">100.00%</td><td class="num">328.02</td></tr></tbody></table></div></section>
+  <section class="data-section juliang-section" id="sec-juliang"><h2 class="section-title" style="border-left:5px solid #ff4757">🚀 巨量数据板块（含591平台）</h2><p class="section-note">注：591平台为巨量下属平台，数据已合并计算至巨量整体</p><div class="table-wrap"><table>
+        <thead><tr><th>平台</th><th>26年一级事业部</th><th>昨日消耗(万元)</th><th>昨日环比</th><th>昨日占比</th><th>QTD消耗(万元)</th></tr></thead><tbody><tr><td>591</td><td>【第二事业群】营销二中心</td><td class="num">14.73</td><td class="num"><span class="ratio up">▲46.23%</span></td><td class="num">100.00%</td><td class="num">100.03</td></tr><tr class="subtotal-row"><td colspan="2">【591】小计（巨量下属平台）</td><td class="num">14.73</td><td class="num"><span class="ratio up">▲46.23%</span></td><td class="num">100.00%</td><td class="num">100.03</td></tr><tr><td>亦芯ad</td><td>【第一事业群】渠道营销中心</td><td class="num">50.76</td><td class="num"><span class="ratio up">▲22.51%</span></td><td class="num">54.59%</td><td class="num">853.44</td></tr><tr><td>亦芯ad</td><td>【第二事业群】营销一中心</td><td class="num">15.26</td><td class="num"><span class="ratio down">▼16.46%</span></td><td class="num">16.41%</td><td class="num">511.58</td></tr><tr class="subtotal-row"><td colspan="2">【亦芯ad】小计</td><td class="num">92.97</td><td class="num"><span class="ratio up">▲0.93%</span></td><td class="num">100.00%</td><td class="num">1949.56</td></tr><tr><td>千川</td><td>【第二事业群】营销三中心</td><td class="num">260.93</td><td class="num"><span class="ratio up">▲12.11%</span></td><td class="num">91.86%</td><td class="num">6115.75</td></tr><tr><td>千川</td><td>【第一事业群】营销三中心</td><td class="num">20.48</td><td class="num"><span class="ratio down">▼16.14%</span></td><td class="num">7.21%</td><td class="num">478.62</td></tr><tr class="subtotal-row"><td colspan="2">【千川】小计</td><td class="num">284.04</td><td class="num"><span class="ratio up">▲9.41%</span></td><td class="num">100.00%</td><td class="num">6664.63</td></tr><tr><td>本地推</td><td>【第二事业群】营销一中心</td><td class="num">58.60</td><td class="num"><span class="ratio down">▼7.64%</span></td><td class="num">67.32%</td><td class="num">1294.19</td></tr><tr><td>本地推</td><td>【第一事业群】渠道营销中心</td><td class="num">25.56</td><td class="num"><span class="ratio down">▼3.40%</span></td><td class="num">29.37%</td><td class="num">386.54</td></tr><tr class="subtotal-row"><td colspan="2">【本地推】小计</td><td class="num">87.05</td><td class="num"><span class="ratio down">▼5.05%</span></td><td class="num">100.00%</td><td class="num">1717.15</td></tr></tbody></table></div></section>
+  <section class="data-section xhs-section" id="sec-xhs"><h2 class="section-title" style="border-left:5px solid #ff2d55">📕 小红书数据板块（红书本土 + 红书医美）</h2><p class="section-note">注：红书本土/红书医美为小红书下属平台，消耗数据已合并计算至小红书整体；红书本土消耗=累量消耗（仅3-4月），红书医美消耗=现金消耗（元），单位：万元；红书四川为独立平台，见下方板块</p><div class="table-wrap"><table>
+        <thead><tr><th>平台</th><th>26年一级事业部</th><th>昨日消耗(万元)</th><th>昨日环比</th><th>昨日占比</th><th>双月消耗3-4月(万元)</th></tr></thead><tbody><tr><td>红书医美</td><td>【第二事业群】营销一中心</td><td class="num">62.77</td><td class="num"><span class="ratio up">▲0.60%</span></td><td class="num">69.58%</td><td class="num">3129.32</td></tr><tr><td>红书医美</td><td>【第一事业群】渠道营销中心</td><td class="num">23.07</td><td class="num"><span class="ratio down">▼4.54%</span></td><td class="num">25.57%</td><td class="num">1222.39</td></tr><tr class="subtotal-row"><td colspan="2">【红书医美】小计 <span class="field-note">消耗字段：现金消耗（元）</span></td><td class="num">90.22</td><td class="num"><span class="ratio down">▼0.36%</span></td><td class="num">100.00%</td><td class="num">4527.41</td></tr><tr><td>红书本土</td><td>【第二事业群】营销一中心</td><td class="num">140.92</td><td class="num"><span class="ratio up">▲0.30%</span></td><td class="num">56.69%</td><td class="num">6796.85</td></tr><tr><td>红书本土</td><td>【第一事业群】渠道营销中心</td><td class="num">92.22</td><td class="num"><span class="ratio up">▲4.95%</span></td><td class="num">37.10%</td><td class="num">4697.21</td></tr><tr class="subtotal-row"><td colspan="2">【红书本土】小计 <span class="field-note">消耗字段：累量消耗（仅3-4月数据）</span></td><td class="num">248.60</td><td class="num"><span class="ratio up">▲1.80%</span></td><td class="num">100.00%</td><td class="num">12012.47</td></tr></tbody></table></div></section>
+  <section class="data-section sichuan-section" id="sec-sichuan"><h2 class="section-title" style="border-left:5px solid #e84393">🌺 红书四川数据板块（单独平台）</h2><p class="section-note">注：红书四川为单独独立平台，不纳入小红书板块汇总；消耗字段为现金消耗（元），展示前2名事业部，单位：万元</p><div class="table-wrap"><table>
+        <thead><tr><th>平台</th><th>26年一级事业部</th><th>昨日消耗(万元)</th><th>昨日环比</th><th>昨日占比</th><th>双月消耗3-4月(万元)</th></tr></thead><tbody><tr><td>红书四川</td><td>【第一事业群】渠道营销中心</td><td class="num">0.00</td><td class="num">-</td><td class="num">100.00%</td><td class="num">13.24</td></tr><tr class="subtotal-row"><td colspan="2">【红书四川】小计 <span class="field-note">消耗字段：现金消耗（元）</span></td><td class="num">0.00</td><td class="num"><span class="ratio down">▼99.96%</span></td><td class="num">100.00%</td><td class="num">79.91</td></tr></tbody></table></div></section>
+  <section class="data-section gaode-section" id="sec-gaode"><h2 class="section-title" style="border-left:5px solid #00b894">🗺️ 高德数据板块（2026年Q2）</h2><p class="section-note">注：高德为独立媒体板块，仅展示2026年Q2（4-6月）数据，字段为"总收款（充值+年费）"（单位：万元）；展示所有一级事业部明细</p><div class="table-wrap"><table>
+        <thead><tr><th>26年一级事业部</th><th>昨日收款(万元)</th><th>昨日环比</th><th>昨日占比</th><th>Q2 QTD收款(万元)</th></tr></thead><tbody><tr><td>【第一事业群】营销二中心</td><td class="num">0.00</td><td class="num">-</td><td class="num">0.00%</td><td class="num">0.90</td></tr></tbody></table></div></section>
+  <section class="data-section bilibili-section" id="sec-bilibili"><h2 class="section-title" style="border-left:5px solid #00cec9">📺 B站数据板块</h2><p class="section-note">注：仅展示昨日消耗排名第1的一级事业部</p><div class="table-wrap"><table>
+        <thead><tr><th>26年一级事业部</th><th>昨日消耗(万元)</th><th>昨日环比</th><th>昨日占比</th><th>QTD消耗(万元)</th></tr></thead><tbody><tr><td>【第二事业群】营销二中心</td><td class="num">33.88</td><td class="num"><span class="ratio up">▲6.51%</span></td><td class="num">91.83%</td><td class="num">749.73</td></tr></tbody></table></div></section>
+  <section class="data-section baidu-section" id="sec-baidu"><h2 class="section-title" style="border-left:5px solid #fdcb6e">🔍 百度数据板块</h2><p class="section-note">注：仅展示昨日消耗排名第1的一级事业部；汇总字段：现金（万元）</p><div class="table-wrap"><table>
+        <thead><tr><th>26年一级事业部</th><th>昨日消耗(万元)</th><th>昨日环比</th><th>昨日占比</th><th>QTD消耗(万元)</th></tr></thead><tbody><tr><td>【第二事业群】营销二中心</td><td class="num">14.36</td><td class="num"><span class="ratio up">▲5.78%</span></td><td class="num">94.22%</td><td class="num">230.83</td></tr></tbody></table></div></section>
+  <section class="data-section alipay-section" id="sec-alipay"><h2 class="section-title" style="border-left:5px solid #636e72">💳 支付宝数据板块</h2><div class="table-wrap"><table>
+        <thead><tr><th>业务类型</th><th>26年一级事业部</th><th>昨日消耗(万元)</th><th>昨日环比</th><th>昨日占比</th><th>QTD消耗(万元)</th></tr></thead><tbody><tr><td>三方</td><td>【第一事业群】营销三中心</td><td class="num">7.00</td><td class="num"><span class="ratio down">▼4.77%</span></td><td class="num">49.59%</td><td class="num">164.38</td></tr><tr><td>三方</td><td>【第二事业群】营销三中心</td><td class="num">0.32</td><td class="num">-</td><td class="num">2.25%</td><td class="num">15.68</td></tr><tr><td>三方</td><td>【第二事业群】营销二中心</td><td class="num">6.79</td><td class="num"><span class="ratio down">▼28.52%</span></td><td class="num">48.16%</td><td class="num">146.79</td></tr><tr class="subtotal-row"><td colspan="2">【三方】小计</td><td class="num">14.11</td><td class="num"><span class="ratio down">▼16.28%</span></td><td class="num">100.00%</td><td class="num">326.85</td></tr><tr><td>二方</td><td>【第二事业群】营销二中心</td><td class="num">11.21</td><td class="num"><span class="ratio down">▼39.37%</span></td><td class="num">100.00%</td><td class="num">207.23</td></tr><tr class="subtotal-row"><td colspan="2">【二方】小计</td><td class="num">11.21</td><td class="num"><span class="ratio down">▼39.37%</span></td><td class="num">100.00%</td><td class="num">207.23</td></tr></tbody></table></div></section>
+</div>
+<div class="page-footer">亦芯数据看板 · 数据来源：D:\全媒体叠加表\ · 所有金额单位：万元 · 小红书板块含红书本土+红书医美 · 红书四川为单独平台</div>
