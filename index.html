@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>我的自动刷新页面</title>
+</head>
+<body>
+<div id="content"></div>
+
+<script>
+// 每 30 秒自动拉取最新内容
+setInterval(async () => {
+  const res = await fetch('./data.html?t='+Date.now())
+  const text = await res.text()
+  document.getElementById('content').innerHTML = text
+}, 30000)
+</script>
+</body>
+</html>
